@@ -1,0 +1,267 @@
+# Attention Is All You Need — 논문 정리
+
+> Vaswani et al., 2017 | [arXiv:1706.03762](https://arxiv.org/abs/1706.03762)
+
+---
+
+## 목차
+
+1. [배경 및 동기](#1-배경-및-동기)
+2. [Transformer 전체 구조](#2-transformer-전체-구조)
+3. [Scaled Dot-Product Attention](#3-scaled-dot-product-attention)
+4. [Multi-Head Attention](#4-multi-head-attention)
+5. [Position-wise Feed-Forward Network](#5-position-wise-feed-forward-network)
+6. [Positional Encoding](#6-positional-encoding)
+7. [학습 설정 및 결과](#7-학습-설정-및-결과)
+8. [핵심 인사이트 정리](#8-핵심-인사이트-정리)
+9. [개인 메모](#9-개인-메모)
+
+---
+
+## 1. 배경 및 동기
+
+### 기존 방식의 문제점
+
+2017년 당시 NLP의 지배적 구조는 **RNN(LSTM, GRU)** 기반의 Seq2Seq + Attention 모델이었다.
+
+| 모델 | 문제점 |
+|------|--------|
+| RNN / LSTM | 순차적 계산 → 병렬화 불가, 긴 시퀀스에서 기울기 소실 |
+| CNN 기반 | 지역적 receptive field → 먼 거리 의존성 포착 어려움 |
+| Attention alone | 당시엔 RNN 위에 얹어서만 사용 |
+
+### 핵심 아이디어
+
+> "Attention 만으로 시퀀스의 모든 위치 간 관계를 직접 모델링할 수 있다."
+
+RNN 없이 **순수 Attention 메커니즘**만으로 Encoder-Decoder를 구성.  
+결과적으로 병렬화 가능 + 긴 거리 의존성 처리 모두 해결.
+
+---
+
+## 2. Transformer 전체 구조
+
+```
+입력 시퀀스
+    ↓
+[Input Embedding + Positional Encoding]
+    ↓
+┌─────────────────────────────┐
+│   Encoder  (N=6개 반복)      │
+│  ┌───────────────────────┐  │
+│  │  Multi-Head Attention │  │
+│  │  Add & LayerNorm      │  │
+│  │  Feed-Forward         │  │
+│  │  Add & LayerNorm      │  │
+│  └───────────────────────┘  │
+└─────────────────────────────┘
+    ↓ (Encoder 출력 → Decoder에 전달)
+┌─────────────────────────────┐
+│   Decoder  (N=6개 반복)      │
+│  ┌───────────────────────┐  │
+│  │  Masked MHA           │  │
+│  │  Add & LayerNorm      │  │
+│  │  Cross-Attention      │  │  ← Encoder 출력 참조
+│  │  Add & LayerNorm      │  │
+│  │  Feed-Forward         │  │
+│  │  Add & LayerNorm      │  │
+│  └───────────────────────┘  │
+└─────────────────────────────┘
+    ↓
+[Linear + Softmax]
+    ↓
+출력 시퀀스
+```
+
+- **Encoder**: N=6개 레이어 스택. 입력 전체를 한 번에 처리.
+- **Decoder**: N=6개 레이어 스택. Auto-regressive하게 출력 생성.
+- **Add & LayerNorm**: Residual connection + Layer Normalization. 학습 안정화.
+
+---
+
+## 3. Scaled Dot-Product Attention
+
+### 수식
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+
+### 구성 요소
+
+| 기호 | 이름 | 역할 |
+|------|------|------|
+| $Q$ | Query | "무엇을 찾고 싶은가?" |
+| $K$ | Key | "나는 무엇과 관련 있는가?" |
+| $V$ | Value | "실제로 전달할 정보" |
+| $d_k$ | Key 차원 | 스케일링 상수 |
+
+### 왜 $\sqrt{d_k}$로 나누는가?
+
+$d_k$가 커질수록 $QK^T$의 내적 값이 커져 softmax가 극단적으로 작아지는 기울기 소실이 발생한다.  
+$\sqrt{d_k}$로 나눔으로써 내적 값의 분산을 1로 정규화.
+
+### Python 구현 (간소화)
+
+```python
+import torch
+import torch.nn.functional as F
+import math
+
+def scaled_dot_product_attention(Q, K, V, mask=None):
+    d_k = Q.size(-1)
+    
+    # (batch, heads, seq_len, seq_len)
+    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d_k)
+    
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, float('-inf'))
+    
+    attn_weights = F.softmax(scores, dim=-1)
+    
+    return torch.matmul(attn_weights, V), attn_weights
+```
+
+---
+
+## 4. Multi-Head Attention
+
+### 아이디어
+
+Attention을 $h$번 병렬로 수행 → 서로 다른 "관점"에서 정보 포착.
+
+### 수식
+
+$$\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h) W^O$$
+
+$$\text{head}_i = \text{Attention}(QW_i^Q,\ KW_i^K,\ VW_i^V)$$
+
+### 파라미터 설정 (논문 기준)
+
+| 설정 | 값 |
+|------|----|
+| $h$ (head 수) | 8 |
+| $d_{model}$ | 512 |
+| $d_k = d_v = d_{model}/h$ | 64 |
+
+각 head가 64차원을 처리 → 연결 후 512차원 = 단일 Attention과 연산량 유사.
+
+### Decoder의 세 가지 Attention
+
+1. **Masked Self-Attention**: 미래 토큰 참조 방지 (autoregressive)
+2. **Cross-Attention**: Query=Decoder, Key·Value=Encoder 출력
+3. **Self-Attention**: Decoder 내부 문맥 파악
+
+---
+
+## 5. Position-wise Feed-Forward Network
+
+### 수식
+
+$$\text{FFN}(x) = \max(0,\ xW_1 + b_1)W_2 + b_2$$
+
+- 각 위치에 **독립적으로** 동일한 MLP 적용 (위치 간 파라미터 공유)
+- 내부 차원: $d_{ff} = 2048$ (논문 기준)
+- Attention이 "어디를 볼지" 결정하면, FFN이 "어떻게 변환할지" 처리
+
+---
+
+## 6. Positional Encoding
+
+RNN과 달리 Transformer는 입력을 병렬로 처리 → 순서 정보 없음.  
+→ 위치 정보를 임베딩에 **직접 더해줘야** 한다.
+
+### 수식
+
+$$PE_{(pos, 2i)} = \sin\!\left(\frac{pos}{10000^{2i/d_{model}}}\right)$$
+
+$$PE_{(pos, 2i+1)} = \cos\!\left(\frac{pos}{10000^{2i/d_{model}}}\right)$$
+
+| 기호 | 의미 |
+|------|------|
+| $pos$ | 시퀀스에서의 위치 |
+| $i$ | 차원 인덱스 |
+| $d_{model}$ | 임베딩 차원 (512) |
+
+### 특성
+
+- 학습 없이 고정된 값 사용 (sinusoidal)
+- 임의 길이 시퀀스 처리 가능
+- 상대적 위치를 선형 변환으로 표현 가능
+
+```python
+import torch
+import math
+
+def positional_encoding(max_len, d_model):
+    PE = torch.zeros(max_len, d_model)
+    pos = torch.arange(0, max_len).unsqueeze(1).float()
+    div_term = torch.exp(
+        torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+    )
+    PE[:, 0::2] = torch.sin(pos * div_term)
+    PE[:, 1::2] = torch.cos(pos * div_term)
+    return PE  # (max_len, d_model)
+```
+
+---
+
+## 7. 학습 설정 및 결과
+
+### 학습 세부 사항
+
+| 항목 | 값 |
+|------|----|
+| 데이터셋 | WMT 2014 EN-DE (4.5M 문장쌍) |
+| 옵티마이저 | Adam ($\beta_1=0.9, \beta_2=0.98, \epsilon=10^{-9}$) |
+| Learning Rate Schedule | Warmup + 역제곱근 감소 |
+| Dropout | 0.1 |
+| Label Smoothing | $\epsilon_{ls} = 0.1$ |
+
+### Learning Rate Schedule 수식
+
+$$lr = d_{model}^{-0.5} \cdot \min(step^{-0.5},\ step \cdot warmup\_steps^{-1.5})$$
+
+### 결과 (EN-DE 번역)
+
+| 모델 | BLEU | 학습 비용 (FLOPs) |
+|------|------|-----------------|
+| 기존 SOTA (앙상블) | 26.30 | 매우 높음 |
+| **Transformer (big)** | **28.4** | 3.3 × 10¹⁸ |
+| Transformer (base) | 27.3 | 3.8 × 10¹⁷ |
+
+→ 당시 SOTA를 2 BLEU 이상 앞서면서 **학습 비용은 훨씬 적음**.
+
+---
+
+## 8. 핵심 인사이트 정리
+
+### Transformer가 중요한 이유
+
+1. **병렬화**: RNN의 순차 처리 제거 → GPU 활용 극대화
+2. **Long-range dependency**: 임의의 두 위치가 단 1번의 Attention으로 연결
+3. **확장성**: 구조 그대로 크게 키우면 성능이 계속 오름 → GPT, BERT, LLaMA 등의 기반
+
+### RNN vs Transformer 비교
+
+| 항목 | RNN | Transformer |
+|------|-----|-------------|
+| 병렬화 | 불가 | 가능 |
+| 긴 거리 의존성 | 약함 (기울기 소실) | 강함 (직접 연결) |
+| 연산 복잡도 (시퀀스 길이 $n$) | $O(n)$ | $O(n^2)$ |
+| 메모리 | 낮음 | 높음 (Attention matrix) |
+
+> Trade-off: $n^2$ 복잡도 때문에 매우 긴 시퀀스에서는 여전히 도전적.  
+> → 이후 연구들 (Longformer, Flash Attention 등)이 이 부분을 개선.
+
+---
+
+## 9. 개인 메모
+
+- [ ] Attention 시각화 직접 구현해보기 (L-CIS XAI 모듈 참고)
+- [ ] BERT (Encoder only), GPT (Decoder only)와의 구조 비교 정리
+- [ ] Flash Attention 논문으로 이어서 읽기
+- [ ] `torch.nn.MultiheadAttention` 소스 코드 분석
+
+---
+
+*마지막 수정: 2026년 3월*  
+*참고: [Annotated Transformer (Harvard NLP)](https://nlp.seas.harvard.edu/2018/04/03/attention.html)*
