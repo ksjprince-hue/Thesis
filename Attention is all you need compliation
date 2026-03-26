@@ -262,6 +262,5 @@ $$lr = d_{model}^{-0.5} \cdot \min(step^{-0.5},\ step \cdot warmup\_steps^{-1.5}
 - [ ] `torch.nn.MultiheadAttention` 소스 코드 분석
 
 ---
-
-*마지막 수정: 2026년 3월*  
-*참고: [Annotated Transformer (Harvard NLP)](https://nlp.seas.harvard.edu/2018/04/03/attention.html)*
+참고*
+https://losskatsu.github.io/machine-learning/attention-is-all-you-need/#0-abstract 
