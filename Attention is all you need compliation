@@ -144,9 +144,9 @@ $$\text{head}_i = \text{Attention}(QW_i^Q,\ KW_i^K,\ VW_i^V)$$
 
 ### Decoder의 세 가지 Attention
 
-1. **Masked Self-Attention**: 미래 토큰 참조 방지 (autoregressive)
-2. **Cross-Attention**: Query=Decoder, Key·Value=Encoder 출력
-3. **Self-Attention**: Decoder 내부 문맥 파악
+1. Masked Self-Attention: 미래 토큰 참조 방지 (autoregressive)
+2. Cross-Attention: Query=Decoder, Key·Value=Encoder 출력
+3. Self-Attention: Decoder 내부 문맥 파악
 
 ---
 
@@ -156,7 +156,7 @@ $$\text{head}_i = \text{Attention}(QW_i^Q,\ KW_i^K,\ VW_i^V)$$
 
 $$\text{FFN}(x) = \max(0,\ xW_1 + b_1)W_2 + b_2$$
 
-- 각 위치에 **독립적으로** 동일한 MLP 적용 (위치 간 파라미터 공유)
+- 각 위치에 독립적으로 동일한 MLP 적용 (위치 간 파라미터 공유)
 - 내부 차원: $d_{ff} = 2048$ (논문 기준)
 - Attention이 "어디를 볼지" 결정하면, FFN이 "어떻게 변환할지" 처리
 
@@ -165,7 +165,7 @@ $$\text{FFN}(x) = \max(0,\ xW_1 + b_1)W_2 + b_2$$
 ## 6. Positional Encoding
 
 RNN과 달리 Transformer는 입력을 병렬로 처리 → 순서 정보 없음.  
-→ 위치 정보를 임베딩에 **직접 더해줘야** 한다.
+→ 위치 정보를 임베딩에 직접 더해줘야 한다.
 
 ### 수식
 
@@ -223,7 +223,7 @@ $$lr = d_{model}^{-0.5} \cdot \min(step^{-0.5},\ step \cdot warmup\_steps^{-1.5}
 | 모델 | BLEU | 학습 비용 (FLOPs) |
 |------|------|-----------------|
 | 기존 SOTA (앙상블) | 26.30 | 매우 높음 |
-| **Transformer (big)** | **28.4** | 3.3 × 10¹⁸ |
+| Transformer (big) | 28.4 | 3.3 × 10¹⁸ |
 | Transformer (base) | 27.3 | 3.8 × 10¹⁷ |
 
 → 당시 SOTA를 2 BLEU 이상 앞서면서 **학습 비용은 훨씬 적음**.
@@ -234,9 +234,9 @@ $$lr = d_{model}^{-0.5} \cdot \min(step^{-0.5},\ step \cdot warmup\_steps^{-1.5}
 
 ### Transformer가 중요한 이유
 
-1. **병렬화**: RNN의 순차 처리 제거 → GPU 활용 극대화
-2. **Long-range dependency**: 임의의 두 위치가 단 1번의 Attention으로 연결
-3. **확장성**: 구조 그대로 크게 키우면 성능이 계속 오름 → GPT, BERT, LLaMA 등의 기반
+1. 병렬화: RNN의 순차 처리 제거 → GPU 활용 극대화
+2. Long-range dependency: 임의의 두 위치가 단 1번의 Attention으로 연결
+3. 확장성: 구조 그대로 크게 키우면 성능이 계속 오름 → GPT, BERT, LLaMA 등의 기반
 
 ### RNN vs Transformer 비교
 
