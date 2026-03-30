@@ -1,7 +1,5 @@
 # Attention Is All You Need — 논문 정리
 
-> Vaswani et al., 2017 | [arXiv:1706.03762](https://arxiv.org/abs/1706.03762)
-
 ---
 
 ## 목차
@@ -22,7 +20,7 @@
 
 ### 기존 방식의 문제점
 
-2017년 당시 NLP의 지배적 구조는 **RNN(LSTM, GRU)** 기반의 Seq2Seq + Attention 모델이었다.
+2017년 당시 NLP의 지배적 구조는 RNN(LSTM, GRU) 기반의 Seq2Seq + Attention 모델이었다.
 
 | 모델 | 문제점 |
 |------|--------|
@@ -34,7 +32,7 @@
 
 > "Attention 만으로 시퀀스의 모든 위치 간 관계를 직접 모델링할 수 있다."
 
-RNN 없이 **순수 Attention 메커니즘**만으로 Encoder-Decoder를 구성.  
+RNN 없이 순수 Attention 메커니즘만으로 Encoder-Decoder를 구성.  
 결과적으로 병렬화 가능 + 긴 거리 의존성 처리 모두 해결.
 
 ---
@@ -73,9 +71,9 @@ RNN 없이 **순수 Attention 메커니즘**만으로 Encoder-Decoder를 구성.
 출력 시퀀스
 ```
 
-- **Encoder**: N=6개 레이어 스택. 입력 전체를 한 번에 처리.
-- **Decoder**: N=6개 레이어 스택. Auto-regressive하게 출력 생성.
-- **Add & LayerNorm**: Residual connection + Layer Normalization. 학습 안정화.
+- Encoder: N=6개 레이어 스택. 입력 전체를 한 번에 처리.
+- Decoder: N=6개 레이어 스택. Auto-regressive하게 출력 생성.
+- Add & LayerNorm: Residual connection + Layer Normalization. 학습 안정화.
 
 ---
 
