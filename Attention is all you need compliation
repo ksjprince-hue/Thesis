@@ -92,6 +92,8 @@ $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)
 | $V$ | Value | "실제로 전달할 정보" |
 | $d_k$ | Key 차원 | 스케일링 상수 |
 
+즉 Query와 Key의 유사도를 계산해 "어디에 집중해야 하는가"를 결정하고, 그 결과를 기반으로 Value 정보를 가져오는 구조라고 이해했다.
+
 ### 왜 $\sqrt{d_k}$로 나누는가?
 
 $d_k$가 커질수록 $QK^T$의 내적 값이 커져 softmax가 극단적으로 작아지는 기울기 소실이 발생한다.  
@@ -253,6 +255,10 @@ $$lr = d_{model}^{-0.5} \cdot \min(step^{-0.5},\ step \cdot warmup\_steps^{-1.5}
 ---
 
 ## 9. 개인 메모
+ 논문을 읽고 느낀 점
+Transformer는 단순히 새로운 모델 구조라기보다, 이후 모든 대형 언어 모델의 기반이 된 "패러다임 전환"에 가까웠다고 느꼈다.
+특히 Attention을 통해 문장 전체 관계를 한 번에 계산한다는 아이디어가 매우 인상적이었다.
+논문을 읽기 전에는 Transformer를 단순히 "GPT/BERT의 기반 모델" 정도로만 이해했지만, 실제로는 병렬화·확장성·문맥 이해 측면에서 기존 구조를 완전히 바꾼 접근이라는 점을 이해할 수 있었다.
 
 - [ ] Attention 시각화 직접 구현해보기 (L-CIS XAI 모듈 참고)
 - [ ] BERT (Encoder only), GPT (Decoder only)와의 구조 비교 정리
